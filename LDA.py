@@ -141,12 +141,12 @@ def plot_lda(lda, samples, labels, title):
     # plt.legend()
     plt.tight_layout()
     # save plot
-    fig.savefig("results/search_space/{}.png".format(title))
+    fig.savefig("lda/search_space/{}.png".format(title))
     ax.clear()
 
 
 if __name__ == "__main__":
-    df = parse_features_dataset("dataset.csv")
+    df = parse_features_dataset("data/dataset.csv")
     samples, labels = get_samples(df)
     lda = fit_lda(samples, np.ravel(labels[:, 0]))
     plot_lda(lda, samples, labels, title="lda")

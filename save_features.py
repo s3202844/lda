@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 def read_x():
     X = []
     m = 1000+1
-    f = open("samplingX_010D.txt", "r")
+    f = open("data/samplingX_010D.txt", "r")
     lines = f.readlines()
     f.close()
     for i in range(100):
@@ -134,7 +134,7 @@ def build_dataset(folder_path):
     return pd.DataFrame(dataset)
 
 
-def add_faetures_to_dataset(dataset, X):
+def add_features_to_dataset(X, dataset, path_to_save):
     """For each record in dataset, use calculate_features() to calulate features
     of the "content" in the record. Then add the features to the record as a new 
     column. For example, X is a numpy array of 100x1000x10 float numbers, and
@@ -146,15 +146,15 @@ def add_faetures_to_dataset(dataset, X):
     Args:
         dataset (pandas.DataFrame): dataset
         X (numpy array): 100x1000x10 float numbers
-    
+
     Returns:
         pandas.DataFrame: dataset
     """
     is_written = False
-    header = dataset.columns.values.tolist() + ["feature_name", "feature_value"]
+    header = dataset.columns.values.tolist(
+    ) + ["feature_name", "feature_value"]
     records = dataset.values.tolist()
     for i in range(len(records)):
-    # for i in range(2):
         print(i)
         record = records[i]
         content = record[-1]
@@ -168,12 +168,13 @@ def add_faetures_to_dataset(dataset, X):
         temp_dataset = pd.DataFrame([records[i]], columns=header)
         # save dataset to csv file
         if not is_written:
-            temp_dataset.to_csv("dataset.csv", index=False)
+            temp_dataset.to_csv(path_to_save, index=False)
             is_written = True
         else:
-            temp_dataset.to_csv("dataset.csv", mode="a", index=False, header=False)
+            temp_dataset.to_csv(path_to_save, mode="a",
+                                index=False, header=False)
 
 
 X = read_x()
-df = build_dataset("search_space")
-add_faetures_to_dataset(df, X)
+df = build_dataset("data/temp/")
+add_features_to_dataset(X, df, "data/dataset1.csv")
