@@ -77,7 +77,8 @@ def read_file(path):
     with open(path, "r") as f:
         content = f.read()
     content = content.splitlines()
-    content = [line.split(" ")[:-1] for line in content]
+    content = [line.split(" ") for line in content]
+    content = [line if line[-1] != "" else line[:-1] for line in content]
     content = [[float(num) for num in line] for line in content]
     content = np.array(content)
     content = (content - content.min()) / (content.max() - content.min())
@@ -176,5 +177,5 @@ def add_features_to_dataset(X, dataset, path_to_save):
 
 
 X = read_x()
-df = build_dataset("data/temp/")
-add_features_to_dataset(X, df, "data/dataset1.csv")
+df = build_dataset("data/response")
+add_features_to_dataset(X, df, "data/dataset_y.csv")

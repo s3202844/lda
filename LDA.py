@@ -75,7 +75,13 @@ def format_labels(header):
     label = "problem {}".format(int(header[0]))
     if int(header[5]) == 1:
         label += ", random translation limit: {}".format(header[2])
-        alpha = 1 - float(header[2]) / 100
+        # map subtract_lim (90, 60, 30) to alpha (0.2, 0.5, 0.8)
+        if float(header[2]) == 90.:
+            alpha = 0.2
+        elif float(header[2]) == 60.:
+            alpha = 0.5
+        else:
+            alpha = 0.8
         marker = "v"
         s = marker_size * alpha
     elif int(header[6]) == 1:
@@ -85,16 +91,90 @@ def format_labels(header):
         s = 20
     elif int(header[7]) == 1:
         label += ", scale factor: {}".format(header[4])
-        alpha = float(header[4]) / 10
-        marker = "o"
-        s = 10
+        top = np.abs(np.log2(float(header[4])))
+        if top == 3.:
+            alpha = 0.2
+        elif top == 2.:
+            alpha = 0.5
+        else:
+            alpha = 0.8
+        marker = "<" if float(header[4]) < 1 else ">"
+        s = marker_size * alpha
     else:
         alpha = 1
         marker = "o"
-        s = marker_size
+        s = 50
     color = base_colors[int(header[0]) - 1] + "{:02x}".format(int(255 * alpha))
     # color = base_colors[int(header[0]) - 1]
     return label, color, marker, s
+
+
+def legend_elements(type):
+    """Get legend elements.
+
+    Args:
+        type (str): "raw", "subtract", "rotate", "scale"
+
+    Returns:
+        list: legend elements
+    """
+    marker_size = 200
+    # set 5 colors for 5 problems, consider color blindness
+    base_colors = ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725']
+    # define legend
+    legend_elements = []
+    for i in range(5):
+        line = plt.Line2D([0], [0], marker='o', color='w',
+                          label='problem {}'.format(i + 1),
+                          markerfacecolor=base_colors[i],
+                          markersize=50**0.5)
+        # set marker edge color to black
+        line.set_markeredgecolor('black')
+        legend_elements.append(line)
+    if type == "subtract":
+        alphas = [0.8, 0.5, 0.2]
+        for i in range(3):
+            # map subtract_lim (90, 60, 30) to alpha (0.2, 0.5, 0.8)
+            alpha = alphas[i]
+            color = "#000000{:02x}".format(int(255 * alpha))
+            s = marker_size * alpha
+            line = plt.Line2D([0], [0], marker='v', color='w',
+                              label='translation limit: {}'.format(
+                                  30. * (i+1)),
+                              markerfacecolor=color, markersize=s**0.5)
+            # set marker edge color to black
+            line.set_markeredgecolor('black')
+            legend_elements.append(line)
+    if type == "rotate":
+        line = plt.Line2D([0], [0], marker='x', color='w',
+                          label='random rotation',
+                          markersize=20**0.5)
+        # set marker edge color to black
+        line.set_markeredgecolor('black')
+        legend_elements.append(line)
+    if type == "scale":
+        alphas = [0.8, 0.5, 0.2]
+        for i in range(3):
+            alpha = alphas[i]
+            color = "#000000{:02x}".format(int(255 * alpha))
+            s = marker_size * alpha
+            line = plt.Line2D([0], [0], marker='>', color='w',
+                              label='scale factor: {}'.format(2**(i+1)),
+                              markerfacecolor=color, markersize=s**0.5)
+            # set marker edge color to black
+            line.set_markeredgecolor('black')
+            legend_elements.append(line)
+        for i in range(3):
+            alpha = alphas[i]
+            color = "#000000{:02x}".format(int(255 * alpha))
+            s = marker_size * alpha
+            line = plt.Line2D([0], [0], marker='<', color='w',
+                              label='scale factor: {}'.format(0.5**(i+1)),
+                              markerfacecolor=color, markersize=s**0.5)
+            # set marker edge color to black
+            line.set_markeredgecolor('black')
+            legend_elements.append(line)
+    return legend_elements
 
 
 def fit_lda(samples, y):
@@ -121,32 +201,39 @@ def plot_lda(lda, samples, labels, title):
         samples (numpy array): samples
         y (numpy array): labels
     """
-    plot_rate = 0.1
+    plot_rate = 0.03
     # plot LDA
     X = lda.transform(samples)
     fig, ax = plt.subplots()
-    legends = []
-    # for i in range(len(colors)):
-    #     c = colors[i]
-    #     if c not in legends:
-    #         legends += [c]
-    #         plt.scatter([0], [0], c=c, label=labels[i], s=0)
+    is_subtract = False
+    is_rotate = False
+    is_scale = False
     for i in range(len(labels)):
+        is_subtract = True if labels[i][5] == 1 else is_subtract
+        is_rotate = True if labels[i][6] == 1 else is_rotate
+        is_scale = True if labels[i][7] == 1 else is_scale
         is_trans = labels[i][5] == 1 or labels[i][6] == 1 or labels[i][7] == 1
         if is_trans and np.random.rand() > plot_rate:
             continue
-        label, color, marker, s = format_labels(labels[i])
-        ax.scatter(X[i, 0], X[i, 1], label=label, facecolors=color,
-                   marker=marker, s=s, edgecolors='black', linewidths=1)
-    # plt.legend()
-    plt.tight_layout()
+        _, color, marker, s = format_labels(labels[i])
+        ax.scatter(X[i, 0], X[i, 1], facecolors=color, marker=marker,
+                   s=s, edgecolors='black' if not is_rotate else None,
+                   linewidths=1)
+    # set legend
+    legend_type = "subtract" if is_subtract else "rotate" if is_rotate else \
+        "scale" if is_scale else "raw"
+    ax.set_xlabel("Component 1")
+    ax.set_ylabel("Component 2")
+    # locate at top middle
+    ax.legend(handles=legend_elements(legend_type), loc='upper center', ncol=2)
+    fig.tight_layout()
     # save plot
     fig.savefig("lda/search_space/{}.png".format(title))
     ax.clear()
 
 
 if __name__ == "__main__":
-    df = parse_features_dataset("data/dataset.csv")
+    df = parse_features_dataset("data/dataset_x.csv")
     samples, labels = get_samples(df)
     lda = fit_lda(samples, np.ravel(labels[:, 0]))
     plot_lda(lda, samples, labels, title="lda")
