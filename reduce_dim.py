@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+from umap import UMAP
 
 
 def parse_features_dataset(filepath):
@@ -76,9 +76,9 @@ def format_labels(header):
     if int(header[5]) == 1:
         label += ", random translation limit: {}".format(header[2])
         # map subtract_lim (90, 60, 30) to alpha (0.2, 0.5, 0.8)
-        if float(header[2]) == 90.:
+        if float(header[2]) == 90. or float(header[2]) == 900.:
             alpha = 0.2
-        elif float(header[2]) == 60.:
+        elif float(header[2]) == 60. or float(header[2]) == 600.:
             alpha = 0.5
         else:
             alpha = 0.8
@@ -139,8 +139,7 @@ def legend_elements(type):
             color = "#000000{:02x}".format(int(255 * alpha))
             s = marker_size * alpha
             line = plt.Line2D([0], [0], marker='v', color='w',
-                              label='translation limit: {}'.format(
-                                  30. * (i+1)),
+                              label='translation limit: {}'.format(30.*(i+1)),
                               markerfacecolor=color, markersize=s**0.5)
             # set marker edge color to black
             line.set_markeredgecolor('black')
@@ -177,23 +176,23 @@ def legend_elements(type):
     return legend_elements
 
 
-def fit_lda(samples, y):
-    """Fit LDA to samples.
+def fit_reducer(samples):
+    """Fit umap to samples.
 
     Args:
         samples (numpy array): samples
-        y (numpy array): labels
 
     Returns:
-        sklearn.discriminant_analysis.LinearDiscriminantAnalysis: LDA
+        umap object: umap object
     """
-    # use LDA to reduce samples to 2d
-    lda = LinearDiscriminantAnalysis(n_components=2)
-    lda.fit(samples, y)
-    return lda
+    # fit umap
+    reducer = UMAP(n_components=2, n_neighbors=20, min_dist=0.9,
+                   metric='euclidean', random_state=42)
+    reducer.fit(samples)
+    return reducer
 
 
-def plot_lda(lda, samples, labels, title):
+def plot_reducer(reducer, samples, labels, title, exp_type):
     """Plot LDA.
 
     Args:
@@ -201,9 +200,9 @@ def plot_lda(lda, samples, labels, title):
         samples (numpy array): samples
         y (numpy array): labels
     """
-    plot_rate = 0.03
+    plot_rate = 0.04
     # plot LDA
-    X = lda.transform(samples)
+    X = reducer.transform(samples)
     fig, ax = plt.subplots()
     is_subtract = False
     is_rotate = False
@@ -216,7 +215,7 @@ def plot_lda(lda, samples, labels, title):
         if is_trans and np.random.rand() > plot_rate:
             continue
         _, color, marker, s = format_labels(labels[i])
-        ax.scatter(X[i, 0], X[i, 1], facecolors=color, marker=marker,
+        ax.scatter(-X[i, 0], X[i, 1], facecolors=color, marker=marker,
                    s=s, edgecolors='black' if not is_rotate else None,
                    linewidths=1)
     # set legend
@@ -224,31 +223,47 @@ def plot_lda(lda, samples, labels, title):
         "scale" if is_scale else "raw"
     ax.set_xlabel("Component 1")
     ax.set_ylabel("Component 2")
-    # locate at top middle
-    ax.legend(handles=legend_elements(legend_type), loc='upper center', ncol=2)
+    # locate at bottom left, size is slightly smaller than default, 2 columns
+    ax.legend(handles=legend_elements(legend_type),
+              loc='lower left', ncol=2, fontsize=9)
     fig.tight_layout()
     # save plot
-    fig.savefig("lda/search_space/{}.png".format(title))
+    if exp_type == "x":
+        fig.savefig("results/search_space/{}.png".format(title))
+    elif exp_type == "y":
+        fig.savefig("results/response/{}.png".format(title))
     ax.clear()
 
 
 if __name__ == "__main__":
-    df = parse_features_dataset("data/dataset_x.csv")
-    samples, labels = get_samples(df)
-    lda = fit_lda(samples, np.ravel(labels[:, 0]))
-    plot_lda(lda, samples, labels, title="lda")
-    samples_subtract, labels_subtract = get_samples(df, is_subtract=1)
-    samples_rotate, labels_rotate = get_samples(df, is_rotate=1)
-    samples_scale, labels_scale = get_samples(df, is_scale=1)
-    # plot LDA for subtract
-    samples_subtract = np.concatenate((samples, samples_subtract))
-    labels_subtract = np.concatenate((labels, labels_subtract))
-    plot_lda(lda, samples_subtract, labels_subtract, title="lda_subtract")
-    # plot LDA for rotate
-    samples_rotate = np.concatenate((samples, samples_rotate))
-    labels_rotate = np.concatenate((labels, labels_rotate))
-    plot_lda(lda, samples_rotate, labels_rotate, title="lda_rotate")
-    # plot LDA for scale
-    samples_scale = np.concatenate((samples, samples_scale))
-    labels_scale = np.concatenate((labels, labels_scale))
-    plot_lda(lda, samples_scale, labels_scale, title="lda_scale")
+    # df = parse_features_dataset("data/dataset_x.csv")
+    # samples, labels = get_samples(df)
+    # reducer = fit_reducer(samples)
+    # plot_reducer(reducer, samples, labels, title="2d", exp_type="x")
+    for exp_type in ["x", "y"]:
+        if exp_type == "x":
+            df = parse_features_dataset("data/dataset_x.csv")
+        elif exp_type == "y":
+            df = parse_features_dataset("data/dataset_y.csv")
+        samples, labels = get_samples(df)
+        reducer = fit_reducer(samples)
+        plot_reducer(reducer, samples, labels, title="2d", exp_type=exp_type)
+        samples_subtract, labels_subtract = get_samples(df, is_subtract=1)
+        samples_rotate, labels_rotate = get_samples(df, is_rotate=1)
+        samples_scale, labels_scale = get_samples(df, is_scale=1)
+        # plot LDA for subtract
+        samples_subtract = np.concatenate((samples, samples_subtract))
+        labels_subtract = np.concatenate((labels, labels_subtract))
+        plot_reducer(reducer, samples_subtract, labels_subtract,
+                     title="2d_subtract", exp_type=exp_type)
+        # plot LDA for rotate
+        if samples_rotate.shape[0] > 0:
+            samples_rotate = np.concatenate((samples, samples_rotate))
+            labels_rotate = np.concatenate((labels, labels_rotate))
+            plot_reducer(reducer, samples_rotate, labels_rotate,
+                         title="2d_rotate", exp_type=exp_type)
+        # plot LDA for scale
+        samples_scale = np.concatenate((samples, samples_scale))
+        labels_scale = np.concatenate((labels, labels_scale))
+        plot_reducer(reducer, samples_scale, labels_scale,
+                     title="2d_scale", exp_type=exp_type)
