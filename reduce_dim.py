@@ -236,34 +236,71 @@ def plot_reducer(reducer, samples, labels, title, exp_type):
 
 
 if __name__ == "__main__":
-    # df = parse_features_dataset("data/dataset_x.csv")
-    # samples, labels = get_samples(df)
-    # reducer = fit_reducer(samples)
+    # # df = parse_features_dataset("data/dataset_x.csv")
+    # # samples, labels = get_samples(df)
+    # # reducer = fit_reducer(samples)
+    # # plot_reducer(reducer, samples, labels, title="2d", exp_type="x")
+    # for exp_type in ["x", "y"]:
+    #     if exp_type == "x":
+    #         df = parse_features_dataset("data/dataset_x.csv")
+    #     elif exp_type == "y":
+    #         df = parse_features_dataset("data/dataset_y.csv")
+    #     samples, labels = get_samples(df)
+    #     reducer = fit_reducer(samples)
+    #     plot_reducer(reducer, samples, labels, title="2d", exp_type=exp_type)
+    #     samples_subtract, labels_subtract = get_samples(df, is_subtract=1)
+    #     samples_rotate, labels_rotate = get_samples(df, is_rotate=1)
+    #     samples_scale, labels_scale = get_samples(df, is_scale=1)
+    #     # plot LDA for subtract
+    #     samples_subtract = np.concatenate((samples, samples_subtract))
+    #     labels_subtract = np.concatenate((labels, labels_subtract))
+    #     plot_reducer(reducer, samples_subtract, labels_subtract,
+    #                  title="2d_subtract", exp_type=exp_type)
+    #     # plot LDA for rotate
+    #     if samples_rotate.shape[0] > 0:
+    #         samples_rotate = np.concatenate((samples, samples_rotate))
+    #         labels_rotate = np.concatenate((labels, labels_rotate))
+    #         plot_reducer(reducer, samples_rotate, labels_rotate,
+    #                      title="2d_rotate", exp_type=exp_type)
+    #     # plot LDA for scale
+    #     samples_scale = np.concatenate((samples, samples_scale))
+    #     labels_scale = np.concatenate((labels, labels_scale))
+    #     plot_reducer(reducer, samples_scale, labels_scale,
+    #                  title="2d_scale", exp_type=exp_type)
+    df = parse_features_dataset("data/dataset_x.csv")
+    samples, labels = get_samples(df)
+    reducer = fit_reducer(samples)
     # plot_reducer(reducer, samples, labels, title="2d", exp_type="x")
-    for exp_type in ["x", "y"]:
-        if exp_type == "x":
-            df = parse_features_dataset("data/dataset_x.csv")
-        elif exp_type == "y":
-            df = parse_features_dataset("data/dataset_y.csv")
-        samples, labels = get_samples(df)
-        reducer = fit_reducer(samples)
-        plot_reducer(reducer, samples, labels, title="2d", exp_type=exp_type)
-        samples_subtract, labels_subtract = get_samples(df, is_subtract=1)
-        samples_rotate, labels_rotate = get_samples(df, is_rotate=1)
-        samples_scale, labels_scale = get_samples(df, is_scale=1)
-        # plot LDA for subtract
-        samples_subtract = np.concatenate((samples, samples_subtract))
-        labels_subtract = np.concatenate((labels, labels_subtract))
-        plot_reducer(reducer, samples_subtract, labels_subtract,
-                     title="2d_subtract", exp_type=exp_type)
-        # plot LDA for rotate
-        if samples_rotate.shape[0] > 0:
-            samples_rotate = np.concatenate((samples, samples_rotate))
-            labels_rotate = np.concatenate((labels, labels_rotate))
-            plot_reducer(reducer, samples_rotate, labels_rotate,
-                         title="2d_rotate", exp_type=exp_type)
-        # plot LDA for scale
-        samples_scale = np.concatenate((samples, samples_scale))
-        labels_scale = np.concatenate((labels, labels_scale))
-        plot_reducer(reducer, samples_scale, labels_scale,
-                     title="2d_scale", exp_type=exp_type)
+    for problem_id in range(1, 6):
+        X = reducer.transform(samples)
+        fig, ax = plt.subplots()
+        is_subtract = False
+        is_rotate = False
+        is_scale = False
+        for i in range(len(labels)):
+            is_subtract = True if labels[i][5] == 1 else is_subtract
+            is_rotate = True if labels[i][6] == 1 else is_rotate
+            is_scale = True if labels[i][7] == 1 else is_scale
+            is_trans = labels[i][5] == 1 or labels[i][6] == 1 or labels[i][7] == 1
+            if is_trans:
+                continue
+            if int(labels[i][0]) == problem_id:
+                alpha = 1
+            else:
+                alpha = 0.2
+            _, color, marker, s = format_labels(labels[i])
+            ax.scatter(-X[i, 0], X[i, 1], facecolors=color, marker=marker,
+                    s=s, edgecolors='black' if not is_rotate else None,
+                    linewidths=1, alpha=alpha)
+        # set legend
+        legend_type = "subtract" if is_subtract else "rotate" if is_rotate else \
+            "scale" if is_scale else "raw"
+        ax.set_xlabel("Component 1")
+        ax.set_ylabel("Component 2")
+        # locate at bottom left, size is slightly smaller than default, 2 columns
+        ax.legend(handles=legend_elements(legend_type),
+                loc='lower left', ncol=2, fontsize=9)
+        fig.tight_layout()
+        # save plot
+        fig.savefig("results/umap_{}.png".format(problem_id))
+        ax.clear()
