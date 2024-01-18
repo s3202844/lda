@@ -155,6 +155,7 @@ def add_features_to_dataset(X, dataset, path_to_save):
     header = dataset.columns.values.tolist(
     ) + ["feature_name", "feature_value"]
     records = dataset.values.tolist()
+    print(len(records))
     for i in range(len(records)):
         print(i)
         record = records[i]
@@ -177,5 +178,7 @@ def add_features_to_dataset(X, dataset, path_to_save):
 
 
 X = read_x()
+# df = build_dataset("data/search_space")
+# add_features_to_dataset(X, df, "data/dataset_x.csv")
 df = build_dataset("data/response")
 add_features_to_dataset(X, df, "data/dataset_y.csv")
